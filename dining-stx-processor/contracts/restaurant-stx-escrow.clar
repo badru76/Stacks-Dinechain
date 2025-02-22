@@ -17,6 +17,10 @@
 (define-constant ERR_UNREGISTERED_RESTAURANT (err u113))
 (define-constant ERR_INVALID_SESSION_STATUS (err u114))
 (define-constant ERR_RESTAURANT_RATING_ERROR (err u115))
+(define-constant ERR_INVALID_RESTAURANT_NAME (err u116))
+(define-constant ERR_INVALID_MINIMUM_PAYMENT (err u117))
+(define-constant ERR_INVALID_RATING_VALUE (err u118))
+(define-constant ERR_RESTAURANT_NOT_FOUND (err u119))
 
 ;; Constants
 (define-constant MAXIMUM_DINING_PARTICIPANTS u20)
@@ -161,6 +165,7 @@
     (begin
         (asserts! (is-contract-active) ERR_DINING_SESSION_CLOSED)
         (asserts! (is-none (get-restaurant-profile tx-sender)) ERR_UNREGISTERED_RESTAURANT)
+        (asserts! (> (len restaurant-name) u0) ERR_INVALID_RESTAURANT_NAME)
         (map-set RestaurantProfiles tx-sender {
             restaurant-name: restaurant-name,
             is-verified: true,
@@ -182,6 +187,7 @@
         (asserts! (is-contract-active) ERR_DINING_SESSION_CLOSED)
         (asserts! (validate-payment-amount required-total-amount) ERR_INVALID_PAYMENT_AMOUNT)
         (asserts! (<= gratuity-percentage u30) ERR_INVALID_PAYMENT_AMOUNT) ;; Max 30% gratuity
+        (asserts! (>= minimum-participant-payment MINIMUM_PAYMENT_AMOUNT) ERR_INVALID_MINIMUM_PAYMENT)
         (let
             ((dining-session-id (var-get dining-session-counter))
              (restaurant-info (unwrap! (get-restaurant-profile restaurant-principal) ERR_INVALID_RESTAURANT_ACCESS)))
@@ -320,7 +326,10 @@
 
 (define-public (submit-restaurant-rating (restaurant-principal principal) (rating-value uint))
     (begin
-        (asserts! (and (>= rating-value u1) (<= rating-value u5)) ERR_INVALID_PAYMENT_AMOUNT)
+        (asserts! (and (>= rating-value u1) (<= rating-value u5)) ERR_INVALID_RATING_VALUE)
+        
+        ;; Check if the restaurant exists
+        (asserts! (is-some (get-restaurant-profile restaurant-principal)) ERR_RESTAURANT_NOT_FOUND)
         (unwrap! (update-restaurant-rating-metrics restaurant-principal rating-value) ERR_RESTAURANT_RATING_ERROR)
         (ok true)
     )
